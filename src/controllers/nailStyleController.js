@@ -1,6 +1,6 @@
-const { NailStyle, Service, Manicurist, User } = require('../models');
+const { NailStyle, Service, Manicurist, User, sequelize } = require('../models');
 const { validateNailStyleCreate, validateNailStyleUpdate } = require('../utils/validators');
-const { uploadImage } = require('../services/uploadService');
+const imageService = require('../services/imageService');
 
 exports.getAllNailStyles = async (req, res) => {
   try {
@@ -46,7 +46,14 @@ exports.getAllNailStyles = async (req, res) => {
       ]
     });
     
-    return res.status(200).json({ nailStyles });
+    // Añadir información sobre si tiene imagen en la base de datos
+    const result = nailStyles.map(style => {
+      const nailStyle = style.toJSON();
+      nailStyle.hasImage = !!nailStyle.imageId;
+      return nailStyle;
+    });
+    
+    return res.status(200).json({ nailStyles: result });
   } catch (error) {
     console.error('Error al obtener estilos de uñas:', error);
     return res.status(500).json({ error: 'Error al obtener estilos de uñas' });
@@ -83,7 +90,11 @@ exports.getNailStyleById = async (req, res) => {
       return res.status(404).json({ error: 'Estilo de uñas no encontrado' });
     }
     
-    return res.status(200).json({ nailStyle });
+    // Añadir información sobre si tiene imagen en la base de datos
+    const result = nailStyle.toJSON();
+    result.hasImage = !!result.imageId;
+    
+    return res.status(200).json({ nailStyle: result });
   } catch (error) {
     console.error('Error al obtener estilo de uñas:', error);
     return res.status(500).json({ error: 'Error al obtener estilo de uñas' });
@@ -124,23 +135,36 @@ exports.createNailStyle = async (req, res) => {
       return res.status(404).json({ error: 'Servicio no encontrado' });
     }
     
-    // Manejar la carga de imágenes
-    let imageUrl = req.body.imageUrl;
+    // Iniciar transacción
+    const transaction = await sequelize.transaction();
     
-    if (req.file) {
-      imageUrl = await uploadImage(req.file);
+    try {
+      // Manejar la carga de imágenes
+      let imageId = null;
+      if (req.file) {
+        imageId = await imageService.uploadImage(req.file);
+      }
+      
+      // Crear el estilo
+      const nailStyle = await NailStyle.create({
+        ...req.body,
+        imageId
+      }, { transaction });
+      
+      await transaction.commit();
+      
+      // Preparar respuesta
+      const result = nailStyle.toJSON();
+      result.hasImage = !!imageId;
+      
+      return res.status(201).json({
+        message: 'Estilo de uñas creado exitosamente',
+        nailStyle: result
+      });
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
-    
-    // Crear el estilo
-    const nailStyle = await NailStyle.create({
-      ...req.body,
-      imageUrl
-    });
-    
-    return res.status(201).json({
-      message: 'Estilo de uñas creado exitosamente',
-      nailStyle
-    });
   } catch (error) {
     console.error('Error al crear estilo de uñas:', error);
     return res.status(500).json({ error: 'Error al crear estilo de uñas' });
@@ -197,41 +221,63 @@ exports.updateNailStyle = async (req, res) => {
       }
     }
     
-    // Manejar la carga de imágenes
-    let updateData = { ...req.body };
+    // Iniciar transacción
+    const transaction = await sequelize.transaction();
     
-    if (req.file) {
-      updateData.imageUrl = await uploadImage(req.file);
-    }
-    
-    // Actualizar el estilo
-    await nailStyle.update(updateData);
-    
-    // Obtener el estilo actualizado
-    const updatedNailStyle = await NailStyle.findByPk(id, {
-      include: [
-        {
-          model: Service,
-          as: 'service'
-        },
-        {
-          model: Manicurist,
-          as: 'manicurist',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'name']
-            }
-          ]
+    try {
+      // Preparar datos para actualizar
+      let updateData = { ...req.body };
+      
+      // Manejar la carga de imágenes
+      if (req.file) {
+        // Si ya tiene una imagen, eliminarla
+        if (nailStyle.imageId) {
+          await imageService.deleteImage(nailStyle.imageId);
         }
-      ]
-    });
-    
-    return res.status(200).json({
-      message: 'Estilo de uñas actualizado exitosamente',
-      nailStyle: updatedNailStyle
-    });
+        
+        // Subir la nueva imagen
+        const imageId = await imageService.uploadImage(req.file);
+        updateData.imageId = imageId;
+      }
+      
+      // Actualizar el estilo
+      await nailStyle.update(updateData, { transaction });
+      
+      await transaction.commit();
+      
+      // Obtener el estilo actualizado
+      const updatedNailStyle = await NailStyle.findByPk(id, {
+        include: [
+          {
+            model: Service,
+            as: 'service'
+          },
+          {
+            model: Manicurist,
+            as: 'manicurist',
+            include: [
+              {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'name']
+              }
+            ]
+          }
+        ]
+      });
+      
+      // Preparar respuesta
+      const result = updatedNailStyle.toJSON();
+      result.hasImage = !!result.imageId;
+      
+      return res.status(200).json({
+        message: 'Estilo de uñas actualizado exitosamente',
+        nailStyle: result
+      });
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   } catch (error) {
     console.error('Error al actualizar estilo de uñas:', error);
     return res.status(500).json({ error: 'Error al actualizar estilo de uñas' });
@@ -307,5 +353,34 @@ exports.getNailStyleCategories = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener categorías:', error);
     return res.status(500).json({ error: 'Error al obtener categorías' });
+  }
+};
+
+// Nuevo método para obtener la imagen de un estilo de uñas
+exports.getNailStyleImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const nailStyle = await NailStyle.findByPk(id);
+    
+    if (!nailStyle) {
+      return res.status(404).json({ error: 'Estilo de uñas no encontrado' });
+    }
+    
+    if (!nailStyle.imageId) {
+      return res.status(404).json({ error: 'Este estilo no tiene imagen' });
+    }
+    
+    const image = await imageService.getImage(nailStyle.imageId);
+    
+    // Establecer las cabeceras de respuesta
+    res.set('Content-Type', image.mimetype);
+    res.set('Content-Disposition', `inline; filename="${image.filename}"`);
+    
+    // Enviar los datos de la imagen como respuesta
+    return res.send(image.data);
+  } catch (error) {
+    console.error('Error al obtener imagen de estilo de uñas:', error);
+    return res.status(500).json({ error: 'Error al obtener imagen' });
   }
 };

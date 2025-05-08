@@ -16,6 +16,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'clientId',
         as: 'reviews'
       });
+      // Cambiamos el nombre de la asociación a 'profileImageData'
+      User.belongsTo(models.Image, {
+        foreignKey: 'profileImageId',
+        as: 'profileImageData'
+      });
     }
 
     async comparePassword(password) {
@@ -64,6 +69,15 @@ module.exports = (sequelize, DataTypes) => {
     profileImage: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    // Campo para referencia a la imagen en BD
+    profileImageId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'Images',
+        key: 'id'
+      }
     }
   }, {
     sequelize,

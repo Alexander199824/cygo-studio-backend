@@ -24,6 +24,8 @@ const upload = multer({
 router.get('/', nailStyleController.getAllNailStyles);
 router.get('/categories', nailStyleController.getNailStyleCategories);
 router.get('/:id', nailStyleController.getNailStyleById);
+// Nueva ruta para obtener la imagen
+router.get('/:id/image', nailStyleController.getNailStyleImage);
 
 // Rutas protegidas
 router.use(authenticate);

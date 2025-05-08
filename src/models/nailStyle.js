@@ -15,6 +15,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'nailStyleId',
         as: 'appointments'
       });
+      // Nueva asociación con Image
+      NailStyle.belongsTo(models.Image, {
+        foreignKey: 'imageId',
+        as: 'image'
+      });
     }
   }
 
@@ -29,7 +34,16 @@ module.exports = (sequelize, DataTypes) => {
     },
     imageUrl: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
+    },
+    // Nuevo campo para referencia a la imagen en BD
+    imageId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'Images',
+        key: 'id'
+      }
     },
     category: {
       type: DataTypes.STRING,
