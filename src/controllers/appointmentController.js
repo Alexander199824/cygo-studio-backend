@@ -1,3 +1,5 @@
+const { Op } = require('sequelize');
+const Availability = require('../models').Availability;
 const { Appointment, User, Manicurist, Service, NailStyle, Payment, sequelize } = require('../models');
 const { validateAppointmentCreate, validateAppointmentUpdate } = require('../utils/validators');
 const notificationService = require('../services/notificationService');
