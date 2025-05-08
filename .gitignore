@@ -1,0 +1,32 @@
+# Dependencias
+/node_modules
+node_modules
+
+# Archivo de bloqueo npm
+package-lock.json
+
+# Variables de entorno
+.env
+.env.*
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Archivos de datos de prueba y desarrollo
+*.sqlite
+*.db
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# Archivos de respaldo
+*.bak
+*~
