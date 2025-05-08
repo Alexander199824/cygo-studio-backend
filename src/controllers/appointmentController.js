@@ -1,9 +1,8 @@
-const { Op } = require('sequelize');
 const Availability = require('../models').Availability;
 const { Appointment, User, Manicurist, Service, NailStyle, Payment, sequelize } = require('../models');
 const { validateAppointmentCreate, validateAppointmentUpdate } = require('../utils/validators');
 const notificationService = require('../services/notificationService');
-const { Op } = require('sequelize');
+const { Op } = require('sequelize'); // Eliminada la duplicada
 const moment = require('moment');
 
 exports.getAllAppointments = async (req, res) => {

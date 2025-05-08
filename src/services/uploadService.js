@@ -1,14 +1,6 @@
 const axios = require('axios');
-const models = require('../models');
+const { Payment, Appointment, Service, User, Manicurist, sequelize } = require('../models');
 const moment = require('moment');
-
-// Accedemos a los modelos de esta forma para evitar redeclaraciones
-const Appointment = models.Appointment;
-const Payment = models.Payment;
-const Service = models.Service;
-const User = models.User;
-const Manicurist = models.Manicurist;
-const sequelize = models.sequelize;
 
 // Configuración para Pagadito
 const PAGADITO_UID = process.env.PAGADITO_UID;

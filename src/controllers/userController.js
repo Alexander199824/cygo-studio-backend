@@ -1,4 +1,4 @@
-const { User, Manicurist } = require('../models');
+const { User, Manicurist, sequelize } = require('../models');
 
 // Obtener todos los usuarios
 exports.getAllUsers = async (req, res) => {
@@ -134,5 +134,62 @@ exports.toggleUserStatus = async (req, res) => {
   } catch (error) {
     console.error('Error al cambiar estado de usuario:', error);
     return res.status(500).json({ error: 'Error al cambiar estado de usuario' });
+  }
+};
+
+// Cambiar rol de usuario
+exports.changeUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    // Verificar que el rol sea válido
+    const validRoles = ['client', 'manicurist', 'superadmin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Rol no válido' });
+    }
+    
+    const user = await User.findByPk(id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    // Transacción para manejar cambios relacionados con el rol
+    const transaction = await sequelize.transaction();
+    
+    try {
+      // Actualizar rol de usuario
+      await user.update({ role }, { transaction });
+      
+      // Si cambia a manicurista, crear perfil relacionado
+      if (role === 'manicurist' && user.role !== 'manicurist') {
+        const existingProfile = await Manicurist.findOne({
+          where: { userId: user.id }
+        });
+        
+        if (!existingProfile) {
+          await Manicurist.create({
+            userId: user.id,
+            specialty: 'General',
+            biography: '',
+            active: false
+          }, { transaction });
+        }
+      }
+      
+      await transaction.commit();
+      
+      return res.status(200).json({
+        message: `Rol de usuario cambiado a ${role} exitosamente`,
+        role
+      });
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error al cambiar rol de usuario:', error);
+    return res.status(500).json({ error: 'Error al cambiar rol de usuario' });
   }
 };
