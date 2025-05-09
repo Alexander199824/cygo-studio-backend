@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: DataTypes.UUIDV4
     },
     data: {
-      type: DataTypes.BLOB('long'),  // Para almacenar imágenes como datos binarios
+      type: DataTypes.BLOB,  // Para almacenar imágenes como datos binarios
       allowNull: false
     },
     mimetype: {

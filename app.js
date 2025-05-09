@@ -199,6 +199,7 @@ const createInitialData = async () => {
   }
 };
 
+
 // Función para inicializar base de datos
 const initializeDatabase = async () => {
   try {
@@ -206,52 +207,23 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida.');
     
-    // Verificar si la tabla ManicuristServices existe y tiene la columna price
-    const hasPrice = await checkManicuristServicesWithPrice();
+    // Nueva configuración simple: PRESERVE_DB determina si se mantiene la estructura existente
+    const preserveDb = process.env.PRESERVE_DB === 'false';
     
-    // Opciones de sincronización - MODIFICADAS PARA SOLUCIONAR EL PROBLEMA
-    const forceSync = process.env.FORCE_SYNC === 'true';
-    const alterSync = !hasPrice || process.env.SYNC_DB === 'true'; // Forzar alter si falta la columna price
-    const isDev = process.env.NODE_ENV === 'development' || !hasPrice; // Considerar como dev si falta la columna
-    
-    // Verificar si las tablas existen
-    const tablesExist = await checkTablesExist();
-    
-    // Estrategia de sincronización:
-    if (forceSync) {
-      // Reiniciar desde cero (¡CUIDADO! Borra todos los datos)
-      console.log('FORCE_SYNC=true: Eliminando tablas existentes y recreándolas...');
-      await sequelize.sync({ force: true });
-      console.log('Base de datos reiniciada y modelos sincronizados.');
-      
-      // Crear datos iniciales después de forzar sincronización
-      await createInitialData();
-    } else if (alterSync) {
-      // Modo desarrollo con sincronización activa O falta la columna price
-      if (!hasPrice) {
-        console.log('Falta la columna price en ManicuristServices. Actualizando estructura de tablas...');
-      } else {
-        console.log('Modo desarrollo con SYNC_DB=true: Modificando estructura de tablas...');
-      }
-      await sequelize.sync({ alter: true });
-      console.log('Modelos sincronizados con alter: true.');
-      
-      // Verificar y crear datos iniciales si es necesario
-      await createInitialData();
-    } else if (!tablesExist) {
-      // Las tablas no existen, crearlas sin alterar (seguro en cualquier entorno)
-      console.log('Las tablas no existen: Creando esquema inicial...');
-      await sequelize.sync();
-      console.log('Tablas iniciales creadas.');
-      
-      // Crear datos iniciales para nueva instalación
-      await createInitialData();
-    } else {
-      console.log('Las tablas ya existen. No se realizó sincronización automática.');
-      console.log('Para modificar la estructura use NODE_ENV=development SYNC_DB=true');
-      console.log('Para reiniciar desde cero use FORCE_SYNC=true (¡CUIDADO! Borra datos)');
+    if (preserveDb) {
+      // Si es true, mantener la base de datos tal como está
+      console.log('PRESERVE_DB=true: Manteniendo estructura actual de la base de datos.');
+      console.log('No se realizarán cambios en el esquema de la base de datos.');
       
       // Verificar datos iniciales incluso si las tablas ya existen
+      await createInitialData();
+    } else {
+      // Si es false, reiniciar desde cero (eliminar y recrear todas las tablas)
+      console.log('PRESERVE_DB=false: Eliminando tablas existentes y recreándolas...');
+      await sequelize.sync({ force: true });
+      console.log('Base de datos reiniciada y modelos sincronizados con la nueva estructura.');
+      
+      // Crear datos iniciales después de recrear todas las tablas
       await createInitialData();
     }
     
