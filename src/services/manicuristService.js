@@ -3,7 +3,7 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class ManicuristService extends Model {
     static associate(models) {
-      // Este es un modelo de unión, así que no necesita asociaciones explícitas
+      // Este es un modelo de unión, no necesita asociaciones explícitas
     }
   }
 

@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const bcrypt = require('bcryptjs'); // Importamos bcryptjs
-const { sequelize, User, Service } = require('./src/models'); // Añadimos User, Service
+const { sequelize, User, Service, ManicuristService, Manicurist } = require('./src/models'); // Importar todos los modelos necesarios
 
 // Importar rutas
 const authRoutes = require('./src/routes/authRoutes');
@@ -79,6 +79,23 @@ const checkSuperadminExists = async () => {
   }
 };
 
+// Función para verificar si existe la tabla ManicuristServices con la columna price
+const checkManicuristServicesWithPrice = async () => {
+  try {
+    // Consulta para verificar si existe la columna price en la tabla ManicuristServices
+    const result = await sequelize.query(
+      "SELECT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'ManicuristServices' AND column_name = 'price')",
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    
+    // Convertir el resultado a booleano
+    return result[0] && result[0].exists;
+  } catch (error) {
+    console.error('Error al verificar columna price en ManicuristServices:', error);
+    return false;
+  }
+};
+
 // Función para crear datos iniciales
 const createInitialData = async () => {
   try {
@@ -92,7 +109,7 @@ const createInitialData = async () => {
       const defaultPassword = await bcrypt.hash('CygoAdmin2025', saltRounds);
       
       // Crear superadmin
-      await User.create({
+      const admin = await User.create({
         username: 'admin',
         email: 'admin@cygostudio.com',
         password: defaultPassword,
@@ -105,7 +122,7 @@ const createInitialData = async () => {
       console.log('Creando servicios base...');
       
       // Crear servicios base
-      await Service.create({
+      const service1 = await Service.create({
         name: 'Manicure tradicional',
         description: 'Tratamiento completo para manos que incluye limado, cutículas y esmalte tradicional.',
         price: 150.00,
@@ -114,7 +131,7 @@ const createInitialData = async () => {
         category: 'básico'
       });
       
-      await Service.create({
+      const service2 = await Service.create({
         name: 'Uñas acrílicas',
         description: 'Extensiones de uñas acrílicas con forma y longitud personalizada.',
         price: 300.00,
@@ -123,7 +140,7 @@ const createInitialData = async () => {
         category: 'extensiones'
       });
       
-      await Service.create({
+      const service3 = await Service.create({
         name: 'Uñas de gel',
         description: 'Aplicación de gel de alta duración sobre uñas naturales o extensiones.',
         price: 280.00,
@@ -132,11 +149,49 @@ const createInitialData = async () => {
         category: 'extensiones'
       });
       
+      // Verificar si existe el modelo de ManicuristService para crear relaciones de ejemplo
+      if (typeof ManicuristService !== 'undefined') {
+        console.log('Configurando relaciones de servicios para manicuristas...');
+        
+        // Crear un manicurista de ejemplo para el administrador
+        const adminManicurist = await Manicurist.findOne({
+          where: { userId: admin.id }
+        });
+        
+        if (adminManicurist) {
+          // Asignar servicios al manicurista con precios
+          await ManicuristService.create({
+            manicuristId: adminManicurist.id,
+            serviceId: service1.id,
+            price: service1.price
+          });
+          
+          await ManicuristService.create({
+            manicuristId: adminManicurist.id,
+            serviceId: service2.id,
+            price: service2.price
+          });
+          
+          await ManicuristService.create({
+            manicuristId: adminManicurist.id,
+            serviceId: service3.id,
+            price: service3.price
+          });
+        }
+      }
+      
       console.log('¡Datos iniciales creados exitosamente!');
       console.log('Credenciales de acceso:');
       console.log('Superadmin: admin@cygostudio.com / CygoAdmin2025');
     } else {
       console.log('El usuario superadmin ya existe, no es necesario crear datos iniciales.');
+      
+      // Verificar si la tabla ManicuristServices existe y tiene la columna price
+      const hasPrice = await checkManicuristServicesWithPrice();
+      if (!hasPrice) {
+        console.log('La tabla ManicuristServices existe pero falta la columna price. Actualizando estructura...');
+        // Esto se manejará con alterSync en la función initializeDatabase
+      }
     }
   } catch (error) {
     console.error('Error al crear datos iniciales:', error);
@@ -151,10 +206,13 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida.');
     
-    // Opciones de sincronización
+    // Verificar si la tabla ManicuristServices existe y tiene la columna price
+    const hasPrice = await checkManicuristServicesWithPrice();
+    
+    // Opciones de sincronización - MODIFICADAS PARA SOLUCIONAR EL PROBLEMA
     const forceSync = process.env.FORCE_SYNC === 'true';
-    const alterSync = process.env.SYNC_DB === 'true';
-    const isDev = process.env.NODE_ENV === 'development';
+    const alterSync = !hasPrice || process.env.SYNC_DB === 'true'; // Forzar alter si falta la columna price
+    const isDev = process.env.NODE_ENV === 'development' || !hasPrice; // Considerar como dev si falta la columna
     
     // Verificar si las tablas existen
     const tablesExist = await checkTablesExist();
@@ -168,9 +226,13 @@ const initializeDatabase = async () => {
       
       // Crear datos iniciales después de forzar sincronización
       await createInitialData();
-    } else if (alterSync && isDev) {
-      // Modo desarrollo con sincronización activa
-      console.log('Modo desarrollo con SYNC_DB=true: Modificando estructura de tablas...');
+    } else if (alterSync) {
+      // Modo desarrollo con sincronización activa O falta la columna price
+      if (!hasPrice) {
+        console.log('Falta la columna price en ManicuristServices. Actualizando estructura de tablas...');
+      } else {
+        console.log('Modo desarrollo con SYNC_DB=true: Modificando estructura de tablas...');
+      }
       await sequelize.sync({ alter: true });
       console.log('Modelos sincronizados con alter: true.');
       

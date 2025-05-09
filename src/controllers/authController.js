@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const { User, Manicurist } = require('../models');
 const { validateLogin, validateRegister } = require('../utils/validators');
