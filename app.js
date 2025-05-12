@@ -105,14 +105,14 @@ const createInitialData = async () => {
     if (!superadminExists) {
       console.log('Creando usuario superadmin...');
       
-      const saltRounds = 10;
-      const defaultPassword = await bcrypt.hash('CygoAdmin2025', saltRounds);
+      // Ya no hacemos el hash manualmente para evitar el doble hashing
+      // El hook beforeCreate se encargará de hashear la contraseña
       
       // Crear superadmin
       const admin = await User.create({
         username: 'admin',
         email: 'admin@cygostudio.com',
-        password: defaultPassword,
+        password: 'CygoAdmin2025', // Pasar contraseña en texto plano
         name: 'Administrador',
         phone: '+50212345678',
         role: 'superadmin',
@@ -208,7 +208,7 @@ const initializeDatabase = async () => {
     console.log('Conexión a la base de datos establecida.');
     
     // Nueva configuración simple: PRESERVE_DB determina si se mantiene la estructura existente
-    const preserveDb = process.env.PRESERVE_DB === 'false';
+    const preserveDb = process.env.PRESERVE_DB === 'true';
     
     if (preserveDb) {
       // Si es true, mantener la base de datos tal como está

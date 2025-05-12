@@ -1,4 +1,4 @@
-const { User, Manicurist, Service, Availability, NailStyle, sequelize } = require('../models');
+const { User, Manicurist, Service, Availability, NailStyle, ManicuristService, sequelize } = require('../models');
 const { validateManicuristUpdate } = require('../utils/validators');
 
 exports.getAllManicurists = async (req, res) => {

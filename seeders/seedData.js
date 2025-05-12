@@ -14,14 +14,14 @@ const seedData = async () => {
     // Crear usuario superadmin
     console.log('Creando usuario superadmin...');
     
-    const saltRounds = 10;
-    const defaultPassword = await bcrypt.hash('CygoAdmin2025', saltRounds);
+    // Ya no hacemos el hash manualmente para evitar el doble hashing
+    // El hook beforeCreate se encargará de hashear la contraseña
     
     // Superadmin
     await User.create({
       username: 'admin',
       email: 'admin@cygostudio.com',
-      password: defaultPassword,
+      password: 'CygoAdmin2025', // Pasar contraseña en texto plano
       name: 'Administrador',
       phone: '+50212345678',
       role: 'superadmin',

@@ -41,7 +41,7 @@ exports.register = async (req, res) => {
     const user = await User.create({
       username,
       email,
-      password,
+      password, // Ya no hacemos hash aquí, el hook lo hará
       name,
       phone,
       role: role || 'client',
@@ -92,6 +92,7 @@ exports.login = async (req, res) => {
     }
 
     const { username, password } = req.body;
+    console.log('Intento de inicio de sesión:', { username });
 
     // Buscar usuario
     const user = await User.findOne({
@@ -101,13 +102,24 @@ exports.login = async (req, res) => {
     });
 
     if (!user) {
+      console.log('Usuario no encontrado');
       return res.status(401).json({
         error: 'Credenciales incorrectas'
       });
     }
 
+    // Logs para debug
+    console.log('Usuario encontrado:', { 
+      id: user.id, 
+      username: user.username,
+      role: user.role,
+      passwordHash: user.password.substring(0, 12) + '...' // Mostrar parte del hash para debug
+    });
+
     // Verificar contraseña
     const passwordValid = await user.comparePassword(password);
+    console.log('Resultado de verificación de contraseña:', passwordValid);
+
     if (!passwordValid) {
       return res.status(401).json({
         error: 'Credenciales incorrectas'
