@@ -16,27 +16,15 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'clientId',
         as: 'reviews'
       });
+      // Cambiamos el nombre de la asociación a 'profileImageData'
       User.belongsTo(models.Image, {
         foreignKey: 'profileImageId',
         as: 'profileImageData'
       });
     }
 
-    // Modified comparePassword method with better error handling
     async comparePassword(password) {
-      try {
-        console.log("Comparing password with hash...");
-        console.log("Input password:", password);
-        console.log("Stored hash:", this.password);
-        
-        // Using bcryptjs directly for comparison
-        const result = await bcrypt.compare(password, this.password);
-        console.log("Comparison result:", result);
-        return result;
-      } catch (error) {
-        console.error("Error in password comparison:", error);
-        return false;
-      }
+      return bcrypt.compare(password, this.password);
     }
   }
 
@@ -82,6 +70,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    // Campo para referencia a la imagen en BD
     profileImageId: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -96,18 +85,24 @@ module.exports = (sequelize, DataTypes) => {
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {
-          const salt = await bcrypt.genSalt(10);
-          user.password = await bcrypt.hash(user.password, salt);
+          // Verificar si la contraseña ya es un hash bcrypt
+          if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$') && !user.password.startsWith('$2y$')) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+          }
         }
       },
       beforeUpdate: async (user) => {
         if (user.changed('password')) {
-          const salt = await bcrypt.genSalt(10);
-          user.password = await bcrypt.hash(user.password, salt);
+          // Verificar si la contraseña ya es un hash bcrypt
+          if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$') && !user.password.startsWith('$2y$')) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+          }
         }
       }
     }
   });
   
   return User;
-};
+}

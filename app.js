@@ -96,6 +96,27 @@ const checkManicuristServicesWithPrice = async () => {
   }
 };
 
+// Función para añadir la columna price si no existe
+const addPriceColumn = async () => {
+  try {
+    console.log('Verificando si es necesario añadir la columna price a ManicuristServices...');
+    const hasPrice = await checkManicuristServicesWithPrice();
+    
+    if (!hasPrice) {
+      console.log('Añadiendo columna price a la tabla ManicuristServices...');
+      await sequelize.query(
+        "ALTER TABLE \"ManicuristServices\" ADD COLUMN price DECIMAL(10,2)"
+      );
+      console.log('Columna price añadida exitosamente');
+    } else {
+      console.log('La columna price ya existe en ManicuristServices');
+    }
+  } catch (error) {
+    console.error('Error al añadir columna price:', error);
+    throw error;
+  }
+};
+
 // Función para crear datos iniciales
 const createInitialData = async () => {
   try {
@@ -105,14 +126,11 @@ const createInitialData = async () => {
     if (!superadminExists) {
       console.log('Creando usuario superadmin...');
       
-      // Ya no hacemos el hash manualmente para evitar el doble hashing
-      // El hook beforeCreate se encargará de hashear la contraseña
-      
       // Crear superadmin
       const admin = await User.create({
         username: 'admin',
         email: 'admin@cygostudio.com',
-        password: 'CygoAdmin2025', // Pasar contraseña en texto plano
+        password: 'CygoAdmin2025',
         name: 'Administrador',
         phone: '+50212345678',
         role: 'superadmin',
@@ -190,7 +208,7 @@ const createInitialData = async () => {
       const hasPrice = await checkManicuristServicesWithPrice();
       if (!hasPrice) {
         console.log('La tabla ManicuristServices existe pero falta la columna price. Actualizando estructura...');
-        // Esto se manejará con alterSync en la función initializeDatabase
+        await addPriceColumn();
       }
     }
   } catch (error) {
@@ -198,7 +216,6 @@ const createInitialData = async () => {
     throw error;
   }
 };
-
 
 // Función para inicializar base de datos
 const initializeDatabase = async () => {
@@ -209,6 +226,8 @@ const initializeDatabase = async () => {
     
     // Nueva configuración simple: PRESERVE_DB determina si se mantiene la estructura existente
     const preserveDb = process.env.PRESERVE_DB === 'true';
+    console.log(`PRESERVE_DB está configurado como: ${process.env.PRESERVE_DB}`);
+    console.log(`Valor efectivo de preserveDb: ${preserveDb}`);
     
     if (preserveDb) {
       // Si es true, mantener la base de datos tal como está
